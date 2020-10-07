@@ -1,5 +1,5 @@
 import User from '../../../models/User'
-import { USER_ADDED }  from './channels'
+import { USER_ADDED, USER_DELETED, USER_UPDATED }  from './channels'
 
 export default {
   User: {
@@ -19,15 +19,35 @@ export default {
 
       return user;
     },
-    updateUser: (_, { id, data }) => User.findOneAndUpdate(id, data, { new: true }),
-    deleteUser: async (_, { id }) => {
-      const deleted = await User.findByIdAndDelete(id);
-      return !!deleted;
+    updateUser: async (_, { id, data }, { pubsub }) => { 
+      const user = await User.findOneAndUpdate(id, data, { new: true });
+
+      pubsub.publish(USER_UPDATED, {
+        userUpdated: user,
+      })
+
+      return user;
+
+    },
+    deleteUser: async (_, { id }, {pubsub}) => {
+      const user = await User.findByIdAndDelete(id);
+
+      pubsub.publish(USER_DELETED, {
+        userDeleted: user,
+      })
+
+      return !!user;
     },
   },
   Subscription: {
     userAdded: {
       subscribe: (obj, args, { pubsub }) => pubsub.asyncIterator(USER_ADDED),
+    },
+    userUpdated: {
+      subscribe: (obj, args, { pubsub }) => pubsub.asyncIterator(USER_UPDATED),
+    },
+    userDeleted: {
+      subscribe: ( obj, args, { pubsub }) => pubsub.asyncIterator(USER_DELETED),
     },
   },
 };
